@@ -16,8 +16,17 @@ def initialize_database(conn):
                             Contact_person_name TEXT NOT NULL,
                             address TEXT NOT NULL,
                             city TEXT NOT NULL,
-                            pan_no TEXT NOT NULL CHECK(length(pan_no) <= 10)
+                            pan_no TEXT NOT NULL
                         )''')
+
+        # Add a check constraint for pan_no length
+        conn.execute('''CREATE TRIGGER IF NOT EXISTS check_pan_length
+                        BEFORE INSERT ON vendor_data
+                        FOR EACH ROW
+                        WHEN (LENGTH(NEW.pan_no) > 10)
+                        BEGIN
+                            SELECT RAISE(ABORT, 'Pan number must be 10 characters or less');
+                        END;''')
         
         conn.execute('''CREATE TABLE IF NOT EXISTS material_data (
                             Part_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +60,11 @@ def initialize_database(conn):
 
 def insert_data(conn, table, data):
     """Insert data into SQLite database."""
-    data.to_sql(table, conn, if_exists='append', index=False)
+    try:
+        data.to_sql(table, conn, if_exists='append', index=False)
+    except sqlite3.IntegrityError as e:
+        print(f"IntegrityError: {str(e)}")
+        # Log the error or handle it appropriately
 
 def fetch_data(query, conn):
     """Fetch data from SQLite database."""
